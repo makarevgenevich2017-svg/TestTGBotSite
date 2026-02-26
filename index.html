@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Моё Telegram App</title>
+    
+    <!-- 1. Подключаем официальный скрипт Telegram -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- 2. Стили (CSS) -->
+    <style>
+        body {
+            /* Используем переменные цветов Telegram, чтобы приложение 
+               выглядело нативно (темная/светлая тема подстроятся сами) */
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 80%;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        button {
+            background-color: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            padding: 12px 24px;            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        button:active {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3. Разметка (HTML) -->
+    <div class="card">
+        <h1 id="username">Привет, Гость!</h1>
+        <p>Это тестовое приложение.</p>
+        <button id="sendBtn">Отправить данные боту</button>
+    </div>
+
+    <!-- 4. Логика (JavaScript) -->
+    <script>
+        // Инициализируем объект Telegram WebApp
+        const tg = window.Telegram.WebApp;
+
+        // Сообщаем Телеграму, что приложение готово
+        tg.ready();
+
+        // Разворачиваем приложение на весь экран
+        tg.expand();
+
+        // Элементы со страницы
+        const usernameElement = document.getElementById('username');
+        const sendBtn = document.getElementById('sendBtn');
+
+        // Получаем данные пользователя из Телеграма
+        // (Если открыто не в телеге, данных не будет)
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            const user = tg.initDataUnsafe.user;
+            // Показываем имя пользователя
+            usernameElement.innerText = `Привет, ${user.first_name}!`;
+        } else {
+            usernameElement.innerText = "Привет! (Запусти в Telegram)";
+        }
+
+        // Обработка нажатия на кнопку
+        sendBtn.addEventListener('click', function() {
+            // Вариант А: Просто закрыть приложение и вернуть данные боту
+            // tg.sendData("Пользователь нажал кнопку!");             // tg.close();
+
+            // Вариант Б: Показать нативную кнопку "Главная" внизу (MainButton)
+            tg.MainButton.setText("ОТПРАВИТЬ ДАННЫЕ");
+            tg.MainButton.show();
+            
+            // Действие при нажатии на большую синюю кнопку внизу
+            tg.MainButton.onClick(function() {
+                alert("Данные отправлены боту!");
+                tg.sendData("Кнопка нажата"); // Отправляет строку боту
+                tg.close(); // Закрывает приложение
+            });
+        });
+    </script>
+</body>
+</html>
