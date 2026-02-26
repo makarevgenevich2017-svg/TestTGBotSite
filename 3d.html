@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Аквариум с рыбками</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: sans-serif;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="info">3D Аквариум (Three.js)</div>
+
+    <!-- Подключаем Three.js через CDN -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. Инициализация сцены
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222); // Темный фон
+        scene.fog = new THREE.Fog(0x222222, 10, 50);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(8, 5, 8);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);        document.body.appendChild(renderer.domElement);
+
+        // Контроллеры для вращения мышкой
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // 2. Освещение
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffffff, 100);
+        pointLight.position.set(5, 10, 5);
+        scene.add(pointLight);
+        
+        // Свет снизу для подсветки аквариума
+        const bottomLight = new THREE.PointLight(0x0088ff, 50);
+        bottomLight.position.set(0, -2, 0);
+        scene.add(bottomLight);
+
+        // 3. Создание Аквариума
+        const tankWidth = 6;
+        const tankHeight = 4;
+        const tankDepth = 3;
+        const glassThickness = 0.1;
+
+        // Материал стекла
+        const glassMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0x88ccff,       // Голубоватый оттенок
+            metalness: 0.1,
+            roughness: 0.05,
+            transmission: 0.95,    // Прозрачность
+            thickness: 0.5,        // Толщина стекла для преломления
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.DoubleSide
+        });
+
+        // Геометрия стенок (используем BoxGeometry с вырезом внутри для создания "стенок")
+        // Самый простой способ - сделать куб с прозрачностью
+        const tankGeometry = new THREE.BoxGeometry(tankWidth, tankHeight, tankDepth);
+        const tank = new THREE.Mesh(tankGeometry, glassMaterial);
+        scene.add(tank);
+
+        // 4. Вода внутри
+        const waterGeometry = new THREE.BoxGeometry(tankWidth - 0.2, tankHeight - 0.5, tankDepth - 0.2);
+        const waterMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0x0066aa,
+            transparent: true,
+            opacity: 0.4,            roughness: 0.1,
+            metalness: 0.1
+        });
+        const water = new THREE.Mesh(waterGeometry, waterMaterial);
+        water.position.y = -0.2; // Чуть ниже центра
+        scene.add(water);
+
+        // Пол под аквариумом
+        const floorGeo = new THREE.PlaneGeometry(20, 20);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -tankHeight / 2 - 0.5;
+        scene.add(floor);
+
+
+        // 5. Создание Рыбок
+        const fishes = [];
+        const fishCount = 6;
+
+        function createFish(color) {
+            const fishGroup = new THREE.Group();
+
+            // Тело (конус)
+            const bodyGeo = new THREE.ConeGeometry(0.2, 0.6, 8);
+            bodyGeo.rotateX(Math.PI / 2); // Повернуть, чтобы смотрел вперед
+            const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            fishGroup.add(body);
+
+            // Хвост (конус поменьше)
+            const tailGeo = new THREE.ConeGeometry(0.15, 0.2, 8);
+            tailGeo.rotateX(-Math.PI / 2);
+            const tail = new THREE.Mesh(tailGeo, bodyMat);
+            tail.position.z = -0.35;
+            fishGroup.add(tail);
+
+            // Плавник верхний
+            const finGeo = new THREE.BufferGeometry();
+            const vertices = new Float32Array([
+                0, 0.1, 0,
+                0, 0.3, -0.1,
+                0, 0.1, -0.2
+            ]);
+            finGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            const fin = new THREE.Mesh(finGeo, bodyMat);
+            fin.position.y = 0.1;
+            fin.position.z = 0.1;
+            fishGroup.add(fin);
+            return fishGroup;
+        }
+
+        // Создаем 6 рыбок разных цветов
+        const colors = [0xff0000, 0xffaa00, 0xffff00, 0x00ff00, 0xff00ff, 0xffffff];
+        
+        for (let i = 0; i < fishCount; i++) {
+            const fish = createFish(colors[i]);
+            
+            // Случайная позиция внутри аквариума
+            const x = (Math.random() - 0.5) * (tankWidth - 1);
+            const y = (Math.random() - 0.5) * (tankHeight - 1);
+            const z = (Math.random() - 0.5) * (tankDepth - 1);
+            
+            fish.position.set(x, y, z);
+            
+            // Случайная скорость и направление
+            const speed = 0.02 + Math.random() * 0.03;
+            const direction = new THREE.Vector3(
+                Math.random() - 0.5,
+                (Math.random() - 0.5) * 0.2, // Меньше движения вверх/вниз
+                Math.random() - 0.5
+            ).normalize();
+
+            scene.add(fish);
+            fishes.push({ mesh: fish, dir: direction, speed: speed });
+        }
+
+        // 6. Анимация
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Логика движения рыбок
+            fishes.forEach(fishObj => {
+                const fish = fishObj.mesh;
+                const dir = fishObj.dir;
+                const speed = fishObj.speed;
+
+                // Двигаем рыбку
+                fish.position.addScaledVector(dir, speed);
+
+                // Рыбка смотрит туда, куда плывет
+                const targetPos = fish.position.clone().add(dir);
+                fish.lookAt(targetPos);
+
+                // Анимация хвоста (простое покачивание)
+                const tail = fish.children[1];
+                if (tail) {
+                    tail.rotation.y = Math.sin(Date.now() * 0.01) * 0.3;
+                }
+                // Отталкивание от стенок (простая физика границ)
+                const limitX = tankWidth / 2 - 0.5;
+                const limitY = tankHeight / 2 - 0.5;
+                const limitZ = tankDepth / 2 - 0.5;
+
+                if (fish.position.x > limitX || fish.position.x < -limitX) dir.x *= -1;
+                if (fish.position.y > limitY || fish.position.y < -limitY) dir.y *= -1;
+                if (fish.position.z > limitZ || fish.position.z < -limitZ) dir.z *= -1;
+                
+                // Небольшое случайное изменение направления, чтобы плавали не по прямым линиям
+                if (Math.random() < 0.02) {
+                    dir.x += (Math.random() - 0.5) * 0.1;
+                    dir.y += (Math.random() - 0.5) * 0.1;
+                    dir.z += (Math.random() - 0.5) * 0.1;
+                    dir.normalize();
+                }
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Адаптация под размер окна
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
